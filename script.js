@@ -116,7 +116,54 @@ function clearSelectionHistory() {
   canRestoreSelection = false;
 }
 
-let currentMode = "pdf";
+let currentMode = 'pdf';
+
+// LIBRARY VERIFICATION - CHECK IF ALL LIBRARIES LOADED
+function verifyLibraries() {
+    const missing = [];
+    
+    if (typeof pdfjsLib === 'undefined') {
+        missing.push('PDF.js (pdfjsLib)');
+    } else {
+        // Set PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+    
+    if (typeof window.jspdf === 'undefined') {
+        missing.push('jsPDF');
+    }
+    
+    if (typeof window.PDFLib === 'undefined' && typeof window.pdfLib === 'undefined') {
+        missing.push('pdf-lib');
+    }
+    
+    if (typeof heic2any === 'undefined') {
+        missing.push('heic2any');
+    }
+    
+    if (typeof Tesseract === 'undefined') {
+        missing.push('Tesseract.js');
+    }
+    
+    if (typeof JSZip === 'undefined') {
+        missing.push('JSZip');
+    }
+    
+    if (missing.length > 0) {
+        console.error('❌ Missing libraries:', missing);
+        showError(`Failed to load libraries: ${missing.join(', ')}. Please refresh the page.`);
+        return false;
+    }
+    
+    console.log('✅ All libraries loaded successfully!');
+    return true;
+}
+
+// Verify on page load
+window.addEventListener('load', function() {
+    setTimeout(verifyLibraries, 500); // Wait 500ms for all scripts to load
+});
+
 
 // ✅ Add PDF Worker support
 let pdfWorker = null;
@@ -346,17 +393,25 @@ function createPreviewCard(file, index) {
 }
 
 function initPDFWorker() {
-  if (typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined") {
-    try {
-      pdfWorker = new Worker("pdf-worker.js");
-      isPdfWorkerSupported = true;
-      console.log("PDF Worker initialized");
-    } catch (e) {
-      console.warn("PDF Worker not available:", e);
-      isPdfWorkerSupported = false;
+    // DISABLE PDF WORKER - Use main thread rendering instead
+    // Web Workers can't access pdfjsLib from main window context
+    isPdfWorkerSupported = false;
+    console.log('PDF Worker disabled - using main thread rendering');
+    
+    /* COMMENTED OUT - Worker implementation has library access issues
+    if (typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined') {
+        try {
+            pdfWorker = new Worker('pdf-worker.js');
+            isPdfWorkerSupported = true;
+            console.log('PDF Worker initialized');
+        } catch (e) {
+            console.warn('PDF Worker not available:', e);
+            isPdfWorkerSupported = false;
+        }
     }
-  }
+    */
 }
+
 
 // ✅ ADD Canvas Worker initialization
 function initCanvasWorker() {
@@ -844,45 +899,51 @@ document.querySelectorAll(".mode-card").forEach((card) => {
 });
 
 // ADD NEW FUNCTION
+// UPDATE FILE INPUT ACCEPT BASED ON MODE
 function updateFileInputAccept(mode) {
-  const fileInput = document.getElementById("imageInput");
-
-  const acceptMap = {
-    pdf: "image/*",
-    merge: "application/pdf",
-    split: "application/pdf",
-    jpeg: ".heic,.heif",
-    compress: "image/*",
-    rotate: "image/*",
-    filter: "image/*",
-    convert: "image/*",
-    editor: "image/*",
-    ocr: "image/*",
-    delete: "image/*,application/pdf",
-  };
-
-  fileInput.accept = acceptMap[mode] || "image/*,application/pdf";
-
-  // UPDATE DROP ZONE MESSAGE
-  const modeMessages = {
-    pdf: "Upload images to convert to PDF",
-    merge: "Upload multiple PDF files to merge",
-    split: "Upload PDF file to split",
-    jpeg: "Upload HEIC/HEIF files to convert",
-    compress: "Upload images to compress",
-    rotate: "Upload images to rotate",
-    filter: "Upload images to apply filters",
-    convert: "Upload images to convert format",
-    editor: "Upload 1 image to edit",
-    ocr: "Upload images to extract text",
-    delete: "Upload files to delete",
-  };
-
-  const dropZone = document.querySelector(".drop-zone p");
-  if (dropZone && modeMessages[mode]) {
-    dropZone.textContent = modeMessages[mode];
-  }
+    const fileInput = document.getElementById('imageInput');
+    
+    // Map mode to file accept types
+    const acceptMap = {
+        'pdf': 'image/*',                    // To PDF: accept images only
+        'merge': 'application/pdf',          // Merge: PDF only
+        'split': 'application/pdf',          // Split: PDF only
+        'jpeg': '.heic,.heif',               // HEIC to JPG: HEIC only
+        'compress': 'image/*',               // Compress: images only
+        'rotate': 'image/*',                 // Rotate: images only
+        'filter': 'image/*',                 // Filter: images only
+        'convert': 'image/*',                // Convert: images only
+        'editor': 'image/*',                 // Editor: images only
+        'ocr': 'image/*',                    // OCR: images only
+        'delete': 'image/*,application/pdf'  // Delete: all files
+    };
+    
+    // Update input accept attribute
+    fileInput.accept = acceptMap[mode] || 'image/*,application/pdf';
+    
+    console.log(`Mode changed to: ${mode}, Accept: ${fileInput.accept}`); // Debug log
+    
+    // UPDATE DROP ZONE MESSAGE
+    const modeMessages = {
+        'pdf': 'Upload images to convert to PDF',
+        'merge': 'Upload multiple PDF files to merge',
+        'split': 'Upload PDF file to split',
+        'jpeg': 'Upload HEIC/HEIF files to convert',
+        'compress': 'Upload images to compress',
+        'rotate': 'Upload images to rotate',
+        'filter': 'Upload images to apply filters',
+        'convert': 'Upload images to convert format',
+        'editor': 'Upload 1 image to edit',
+        'ocr': 'Upload images to extract text',
+        'delete': 'Upload files to delete'
+    };
+    
+    const dropZone = document.querySelector('.drop-zone p');
+    if (dropZone && modeMessages[mode]) {
+        dropZone.textContent = modeMessages[mode];
+    }
 }
+
 
 // Same fix for preset-card
 document.querySelectorAll(".preset-card").forEach((preset) => {
@@ -1657,13 +1718,16 @@ async function mergePDFs(filesToProcess) {
   }
 
   try {
-    // ✅ Check if pdf-lib is loaded
-    if (typeof PDFLib === "undefined") {
-      showError("PDF library not loaded! Please refresh the page.");
-      return;
-    }
+    // Check if pdf-lib is loaded
+const PDFLib = window.PDFLib || window.pdfLib;
+if (!PDFLib) {
+    showError('PDF library not loaded! Please refresh the page.');
+    console.error('window.PDFLib:', window.PDFLib, 'window.pdfLib:', window.pdfLib);
+    return;
+}
 
-    const { PDFDocument } = window["pdfLib"];
+const { PDFDocument } = PDFLib;
+
 
     // ✅ Create new merged PDF
     const mergedPdf = await PDFDocument.create();
@@ -1766,12 +1830,16 @@ async function splitPDFs(filesToProcess) {
   }
 
   try {
-    if (typeof PDFLib === "undefined") {
-      showError("PDF library not loaded! Please refresh the page.");
-      return;
-    }
+    // Check if pdf-lib is loaded
+const PDFLib = window.PDFLib || window.pdfLib;
+if (!PDFLib) {
+    showError('PDF library not loaded! Please refresh the page.');
+    console.error('window.PDFLib:', window.PDFLib, 'window.pdfLib:', window.pdfLib);
+    return;
+}
 
-    const { PDFDocument } = window["pdfLib"];
+const { PDFDocument } = PDFLib;
+
 
     const zip = new JSZip();
 
@@ -2621,57 +2689,118 @@ async function resizeOnMainThread(img, targetWidth, targetHeight, quality) {
 }
 
 async function compressFiles(filesToProcess) {
-  const quality = document.getElementById("compressQuality").value / 100;
-  const zip = new JSZip();
-  let originalSize = 0;
-  let compressedSize = 0;
-
-  // ✅ Start timing
-  startProgressTiming(filesToProcess.length);
-
-  for (let i = 0; i < filesToProcess.length; i++) {
-    const file = filesToProcess[i];
-    originalSize += file.size;
-
-    if (VALID_IMAGE_TYPES.includes(file.type)) {
-      const blob = await resizeImageOptimized(file, quality);
-      compressedSize += blob.size;
-      zip.file(file.name.replace(/\.\w+$/, ".jpg"), blob);
-    } else {
-      zip.file(file.name, file);
-      compressedSize += file.size;
-    }
-
-    // ✅ Update stats REAL-TIME after each file
-    const savedSize = originalSize - compressedSize;
-    const savedPercent =
-      originalSize > 0 ? ((savedSize / originalSize) * 100).toFixed(1) : 0;
-
-    document.getElementById("compressStats").innerHTML = `
-            📊 <strong>Real-time Stats:</strong><br>
-            Original: ${(originalSize / 1024 / 1024).toFixed(2)} MB • 
-            Compressed: ${(compressedSize / 1024 / 1024).toFixed(2)} MB • 
-            Saved: ${(savedSize / 1024 / 1024).toFixed(2)} MB (${savedPercent}%)
+    const quality = parseInt(document.getElementById('compressQuality').value) / 100;
+    const zip = new JSZip();
+    
+    let totalOriginalSize = 0;
+    let totalCompressedSize = 0;
+    
+    startProgressTiming(filesToProcess.length);
+    
+    // FUNCTION UNTUK UPDATE STATS REAL-TIME
+    function updateCompressStats(originalSize, compressedSize) {
+        totalOriginalSize += originalSize;
+        totalCompressedSize += compressedSize;
+        
+        const originalMB = (totalOriginalSize / (1024 * 1024)).toFixed(2);
+        const compressedMB = (totalCompressedSize / (1024 * 1024)).toFixed(2);
+        const savedBytes = totalOriginalSize - totalCompressedSize;
+        const savedMB = (savedBytes / (1024 * 1024)).toFixed(2);
+        const savedPercent = totalOriginalSize > 0 
+            ? ((savedBytes / totalOriginalSize) * 100).toFixed(1) 
+            : 0;
+        
+        const compressStats = document.getElementById('compressStats');
+        compressStats.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>Original:</strong> ${originalMB} MB<br>
+                    <strong>Compressed:</strong> ${compressedMB} MB
+                </div>
+                <div style="text-align: right;">
+                    <strong style="color: #10b981; font-size: 16px;">Saved: ${savedMB} MB</strong><br>
+                    <span style="color: #10b981;">(${savedPercent}% reduction)</span>
+                </div>
+            </div>
         `;
-
-    // ✅ Update progress with timing
-    updateProgress(
-      ((i + 1) / filesToProcess.length) * 100,
-      `Compressing ${i + 1}/${filesToProcess.length}`,
-      i + 1,
-      filesToProcess.length
-    );
-  }
-
-  const content = await zip.generateAsync({ type: "blob" });
-  const url = createTrackedURL(content);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `compressed_${Date.now()}.zip`;
-  a.click();
-
-  showSuccess("Files compressed successfully!");
+        
+        // Animate stats update
+        compressStats.style.transform = 'scale(1.02)';
+        setTimeout(() => {
+            compressStats.style.transform = 'scale(1)';
+        }, 200);
+    }
+    
+    // Reset stats
+    const compressStats = document.getElementById('compressStats');
+    compressStats.innerHTML = `
+        <div style="text-align: center; color: #6b7280;">
+            <strong>Processing...</strong><br>
+            Compressing files...
+        </div>
+    `;
+    
+    for (let i = 0; i < filesToProcess.length; i++) {
+        const file = filesToProcess[i];
+        
+        updateProgress(
+            ((i + 1) / filesToProcess.length) * 100,
+            `Compressing ${i + 1}/${filesToProcess.length}: ${file.name}`,
+            i + 1,
+            filesToProcess.length
+        );
+        
+        try {
+            const originalSize = file.size;
+            
+            // Create image bitmap
+            const img = await createImageBitmap(file);
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            
+            // Compress
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(resolve, 'image/jpeg', quality);
+            });
+            
+            const compressedSize = blob.size;
+            
+            // UPDATE STATS REAL-TIME!
+            updateCompressStats(originalSize, compressedSize);
+            
+            // Add to ZIP
+            const fileName = file.name.replace(/\.[^/.]+$/, '.jpg');
+            zip.file(fileName, blob);
+            
+            // Yield to main thread
+            if ((i + 1) % 3 === 0 || i === filesToProcess.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+            
+        } catch (error) {
+            console.error(`Failed to compress ${file.name}:`, error);
+            showError(`Failed to compress ${file.name}: ${error.message}`, 'warning');
+        }
+    }
+    
+    // Generate ZIP
+    updateProgress(100, 'Creating compressed archive...');
+    const content = await zip.generateAsync({ type: 'blob' });
+    
+    // Download
+    const url = createTrackedURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `compressed-${Date.now()}.zip`;
+    a.click();
+    
+    const savedMB = ((totalOriginalSize - totalCompressedSize) / (1024 * 1024)).toFixed(2);
+    showSuccess(`✅ Compressed ${filesToProcess.length} images! Saved ${savedMB} MB`);
 }
+
 
 // ✅ Rotate images
 async function rotateImages(filesToProcess) {
@@ -3234,15 +3363,58 @@ function updateProgress(
   progressLabel.textContent = label;
 }
 
-function showError(message) {
-  const errorDiv = document.getElementById("errorMessage");
-  errorDiv.textContent = message;
-  errorDiv.style.display = "block";
+// ERROR QUEUE SYSTEM
+
+function showError(message, type = 'error', duration = 5000) {
+    // Add to queue
+    errorQueue.push({ message, type, duration });
+    
+    // Process queue if not already showing
+    if (!isShowingError) {
+        processErrorQueue();
+    }
 }
 
-function hideError() {
+async function processErrorQueue() {
+    if (errorQueue.length === 0) {
+        isShowingError = false;
+        return;
+    }
+    
+    isShowingError = true;
+    const { message, type, duration } = errorQueue.shift();
+    
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = message;
+    errorDiv.className = `error-message ${type}`;
+    errorDiv.style.display = 'block';
+    
+    // Auto-hide after duration
+    await new Promise(resolve => setTimeout(resolve, duration));
+    
+    errorDiv.style.display = 'none';
+    
+    // Process next in queue after 300ms delay
+    setTimeout(() => processErrorQueue(), 300);
+}
+
+function clearErrorQueue() {
+    errorQueue.length = 0;
+    isShowingError = false;
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.style.display = 'none';
+}
+
+
+/*function hideError() {
   document.getElementById("errorMessage").style.display = "none";
 }
+*/
+
+function hideError() {
+    clearErrorQueue();
+}
+
 
 // ✅ Add timer tracking
 let successTimer = null;

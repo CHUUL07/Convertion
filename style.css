@@ -668,6 +668,34 @@ h2 {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
+#compressStats {
+  margin-top: 15px;
+  padding: 20px;
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.1) 0%,
+    rgba(5, 150, 105, 0.15) 100%
+  );
+  border-radius: var(--border-radius);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+#compressStats strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+#compressStats:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.15) 0%,
+    rgba(5, 150, 105, 0.2) 100%
+  );
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
 @media (max-width: 600px) {
   .container {
     padding: 25px;

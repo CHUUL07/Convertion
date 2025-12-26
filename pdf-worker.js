@@ -1,7 +1,16 @@
-// pdf-worker.js (CORRECTED)
+// pdf-worker.js
+
+// Import PDF.js library in worker context
+importScripts(
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+);
 importScripts(
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"
 );
+
+// Configure PDF.js
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 self.onmessage = async function (e) {
   const { type, data, scale, pageNumber } = e.data;

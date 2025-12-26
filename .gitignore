@@ -1,0 +1,25 @@
+# File .gitignore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+temp/
+
+# Node modules (kalau pake npm nanti)
+node_modules/
+
+# Build output
+dist/
+build/
