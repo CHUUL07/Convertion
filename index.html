@@ -1,0 +1,712 @@
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Image to PDF Converter</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- 1. PDF.js HARUS PALING AWAL! -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<!-- 2. jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- 3. PDF-lib -->
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+<!-- 4. HEIC converter -->
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+
+<!-- 5. Tesseract OCR -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+<!-- 6. JSZip -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  </head>
+  <body>
+    <div class="container">
+      <h2>
+        <svg
+          width="32"
+          height="32"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          style="
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+          "
+        >
+          <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline>
+        </svg>
+        Image to PDF Converter
+      </h2>
+
+      <!-- Tab-based Mode Selector -->
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-category="convert">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path
+              d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+            ></path>
+          </svg>
+          Convert
+        </button>
+        <button class="mode-tab" data-category="edit">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+            ></path>
+            <path
+              d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+            ></path>
+          </svg>
+          Edit
+        </button>
+        <button class="mode-tab" data-category="optimize">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline
+              points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
+            ></polyline>
+          </svg>
+          Optimize
+        </button>
+      </div>
+
+      <!-- Convert Options -->
+      <div class="mode-options active" data-for="convert">
+        <div class="mode-grid">
+          <div class="mode-card selected" data-mode="pdf">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                ></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+            </div>
+            <div class="label">To PDF</div>
+          </div>
+          <div class="mode-card" data-mode="jpeg">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            </div>
+            <div class="label">HEIC → JPG</div>
+          </div>
+          <div class="mode-card" data-mode="merge">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"
+                ></path>
+                <polyline points="13 2 13 9 20 9"></polyline>
+              </svg>
+            </div>
+            <div class="label">Merge PDF</div>
+          </div>
+          <div class="mode-card" data-mode="convert">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path
+                  d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+                ></path>
+              </svg>
+            </div>
+            <div class="label">Format</div>
+          </div>
+          <div class="mode-card" data-mode="ocr">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="4 7 4 4 20 4 20 7"></polyline>
+                <line x1="9" y1="20" x2="15" y2="20"></line>
+                <line x1="12" y1="4" x2="12" y2="20"></line>
+              </svg>
+            </div>
+            <div class="label">Image → Text</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit Options -->
+      <div class="mode-options" data-for="edit">
+        <div class="mode-grid">
+          <div class="mode-card" data-mode="editor">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"
+                ></path>
+                <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon>
+              </svg>
+            </div>
+            <div class="label">Crop/Resize</div>
+          </div>
+          <div class="mode-card" data-mode="rotate">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </div>
+            <div class="label">Rotate PDF</div>
+          </div>
+          <div class="mode-card" data-mode="delete">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path
+                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                ></path>
+              </svg>
+            </div>
+            <div class="label">Delete Pages</div>
+          </div>
+          <div class="mode-card" data-mode="filter">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="4"></circle>
+                <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
+              </svg>
+            </div>
+            <div class="label">Filters</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Optimize Options -->
+      <div class="mode-options" data-for="optimize">
+        <div class="mode-grid">
+          <div class="mode-card" data-mode="compress">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </div>
+            <div class="label">Compress</div>
+          </div>
+          <div class="mode-card" data-mode="split">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line>
+                <path
+                  d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+                ></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+            </div>
+            <div class="label">Split PDF</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compress Panel with Presets -->
+      <div class="compress-panel" id="compressPanel">
+        <h3
+          style="margin: 0 0 20px 0; color: var(--color-text); font-size: 20px"
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="
+              display: inline-block;
+              vertical-align: middle;
+              margin-right: 8px;
+            "
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Compression
+        </h3>
+
+        <div class="preset-cards">
+          <div class="preset-card active" data-preset="balanced">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path
+                  d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+                ></path>
+              </svg>
+            </div>
+            <h4>Balanced</h4>
+            <p>Good quality, smaller size</p>
+            <small>80% quality</small>
+          </div>
+          <div class="preset-card" data-preset="high">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polygon
+                  points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+                ></polygon>
+              </svg>
+            </div>
+            <h4>High Quality</h4>
+            <p>Best quality, larger size</p>
+            <small>90% quality</small>
+          </div>
+          <div class="preset-card" data-preset="web">
+            <div class="icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path
+                  d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+                ></path>
+              </svg>
+            </div>
+            <h4>Web Optimized</h4>
+            <p>Fast loading, small size</p>
+            <small>60% quality</small>
+          </div>
+        </div>
+
+        <details class="advanced-section">
+          <summary>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              style="
+                display: inline-block;
+                vertical-align: middle;
+                margin-right: 4px;
+              "
+            >
+              <circle cx="12" cy="12" r="3"></circle>
+              <path
+                d="M12 1v6m0 6v6m5.66-13.66l-4.24 4.24m0 6.84l4.24 4.24M23 12h-6m-6 0H1m18.66 5.66l-4.24-4.24m0-6.84l4.24-4.24"
+              ></path>
+            </svg>
+            Advanced Settings
+          </summary>
+          <div class="advanced-options">
+            <div class="compress-option">
+              <label>Type:</label>
+              <select id="compressType">
+                <option value="image" selected>Image</option>
+                <option value="pdf">PDF</option>
+              </select>
+            </div>
+            <div class="compress-option">
+              <label>Quality:</label>
+              <input
+                type="range"
+                id="compressQuality"
+                min="10"
+                max="100"
+                value="80"
+              />
+              <span id="qualityValue">80%</span>
+            </div>
+          </div>
+        </details>
+
+        <div
+          style="
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: var(--border-radius);
+            font-size: 13px;
+          "
+          id="compressStats"
+        >
+          Original: 0.00 MB • Compressed: 0.00 MB • Saved: 0.00 MB (0%)
+        </div>
+      </div>
+
+      <!-- Drop Zone -->
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-zone-content">
+          <span class="drop-icon">
+            <svg
+              width="56"
+              height="56"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+              ></path>
+            </svg>
+          </span>
+          <p>Drop your files here</p>
+          <small>or click to browse from your device</small>
+          <div class="format-badges">
+            <span class="format-badge">PDF</span>
+            <span class="format-badge">JPG</span>
+            <span class="format-badge">PNG</span>
+            <span class="format-badge">HEIC</span>
+            <span class="format-badge">WebP</span>
+          </div>
+        </div>
+        <input
+          type="file"
+          id="imageInput"
+          accept="image/*,application/pdf"
+          multiple
+          style="display: none"
+        />
+      </div>
+
+      <!-- Thumbnail Controls -->
+      <div class="thumbnail-controls" id="thumbnailControls">
+        <label>Preview Size:</label>
+        <div style="display: flex; gap: 5px">
+          <button
+            class="batch-btn"
+            onclick="changeThumbnailSize('small', this)"
+          >
+            S
+          </button>
+          <button
+            class="batch-btn active"
+            onclick="changeThumbnailSize('medium', this)"
+          >
+            M
+          </button>
+          <button
+            class="batch-btn"
+            onclick="changeThumbnailSize('large', this)"
+          >
+            L
+          </button>
+        </div>
+      </div>
+
+      <!-- Batch Controls -->
+      <div class="batch-controls" id="batchControls">
+        <button class="batch-btn" onclick="selectAll()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="
+              display: inline-block;
+              vertical-align: middle;
+              margin-right: 4px;
+            "
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Select All
+        </button>
+        <button class="batch-btn" onclick="deselectAll()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="
+              display: inline-block;
+              vertical-align: middle;
+              margin-right: 4px;
+            "
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+          Deselect All
+        </button>
+        <button class="batch-btn" onclick="invertSelection()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="
+              display: inline-block;
+              vertical-align: middle;
+              margin-right: 4px;
+            "
+          >
+            <polyline points="17 1 21 5 17 9"></polyline>
+            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+            <polyline points="7 23 3 19 7 15"></polyline>
+            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+          </svg>
+          Invert
+        </button>
+        <button class="batch-btn" onclick="deleteSelected()">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="
+              display: inline-block;
+              vertical-align: middle;
+              margin-right: 4px;
+            "
+          >
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path
+              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+            ></path>
+          </svg>
+          Delete
+        </button>
+
+        <button id="restoreSelectionBtn" onclick="manualRestoreSelection()" style="background:#8b5cf6;display:none;">
+        ↺ Restore Selection
+    </button>
+</div>
+      </div>
+
+      <div
+        style="
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          justify-content: center;
+          margin: 25px 0;
+        "
+      >
+        <button class="btn" id="convertBtn" onclick="processFiles()">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="
+              display: inline-block;
+              vertical-align: middle;
+              margin-right: 6px;
+            "
+          >
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path
+              d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+            ></path>
+          </svg>
+          Process Files
+        </button>
+        <button class="btn" onclick="clearFiles()">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="
+              display: inline-block;
+              vertical-align: middle;
+              margin-right: 6px;
+            "
+          >
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path
+              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+            ></path>
+          </svg>
+          Clear All
+        </button>
+      </div>
+
+      <div
+        style="
+          margin-top: 15px;
+          color: var(--color-text-secondary);
+          font-size: 14px;
+        "
+        id="fileCount"
+      >
+        No files selected
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-info">
+          <span class="progress-label" id="progressLabel">Processing...</span>
+          <span class="progress-time" id="progressTime"></span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressBar">
+            <span class="progress-percent">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="error-message" id="errorMessage"></div>
+      <div class="success-message" id="successMessage"></div>
+      <div class="info-message" id="infoMessage"></div>
+
+      <div class="image-preview-container" id="imagePreviewContainer">
+        <div class="image-preview-viewport" id="imagePreviewViewport">
+          <div class="image-preview" id="imagePreview"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+
+    <!-- ADD INIT SCRIPT -->
+<script>
+// Initialize file input accept on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default mode to 'pdf'
+    updateFileInputAccept('pdf');
+});
+</script>
+  </body>
+</html>
