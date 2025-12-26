@@ -2025,170 +2025,361 @@ const { PDFDocument } = PDFLib;
 }
 
 async function convertFormats(filesToProcess) {
-  // ✅ Supported conversions
-  const supportedFormats = {
-    "image/jpeg": [".jpg", "JPEG"],
-    "image/png": [".png", "PNG"],
-    "image/webp": [".webp", "WebP"],
-  };
+    // Ask user for target format
+    const formatOptions = `Choose target format:
+    
+Image Formats:
+1 - PNG to JPG
+2 - JPG to PNG
+3 - BMP to JPG
+4 - BMP to PNG
+5 - WebP to JPG/PNG (coming soon)
 
-  // ✅ Ask target format
-  const formatChoice = prompt(
-    "🔄 Convert images to which format?\n\n" +
-      "1 = JPEG (smaller size, faster, lossy)\n" +
-      "2 = PNG (larger size, lossless, supports transparency)\n" +
-      "3 = WebP (best compression, modern browsers)\n\n" +
-      "Enter number (1-3):",
-    "1"
-  );
+Document Formats:
+6 - Text to PDF
 
-  if (formatChoice === null) {
-    showError("Conversion cancelled");
-    return;
-  }
-
-  const formatMap = {
-    1: { mime: "image/jpeg", ext: ".jpg", name: "JPEG" },
-    2: { mime: "image/png", ext: ".png", name: "PNG" },
-    3: { mime: "image/webp", ext: ".webp", name: "WebP" },
-  };
-
-  const targetFormat = formatMap[formatChoice];
-  if (!targetFormat) {
-    showError("Invalid format choice!");
-    return;
-  }
-
-  // ✅ Ask for quality (for JPEG and WebP)
-  let quality = 0.92;
-  if (targetFormat.mime !== "image/png") {
-    const qualityInput = prompt(
-      `📊 Set ${targetFormat.name} quality:\n\n` +
-        "0.1 = Lowest quality (smallest size)\n" +
-        "0.5 = Medium quality\n" +
-        "0.8 = High quality\n" +
-        "1.0 = Maximum quality (largest size)\n\n" +
-        "Enter value (0.1 - 1.0):",
-      "0.92"
-    );
-
-    if (qualityInput !== null) {
-      const q = parseFloat(qualityInput);
-      if (!isNaN(q) && q >= 0.1 && q <= 1.0) {
-        quality = q;
-      }
+Enter number (1-6):`;
+    
+    const choice = prompt(formatOptions, '1');
+    
+    if (!choice) {
+        showError('Conversion cancelled');
+        return;
     }
-  }
-
-  const zip = new JSZip();
-  startProgressTiming(filesToProcess.length);
-
-  let totalOriginalSize = 0;
-  let totalConvertedSize = 0;
-
-  for (let i = 0; i < filesToProcess.length; i++) {
-    const file = filesToProcess[i];
-
-    // ✅ Only convert images
-    if (!VALID_IMAGE_TYPES.includes(file.type)) {
-      zip.file(file.name, file);
-      updateProgress(
-        ((i + 1) / filesToProcess.length) * 100,
-        `Skipping ${file.name} (not an image)`,
-        i + 1,
-        filesToProcess.length
-      );
-      continue;
-    }
-
-    totalOriginalSize += file.size;
-
+    
     try {
-      // ✅ Check if already in target format
-      if (file.type === targetFormat.mime) {
-        zip.file(file.name, file);
-        totalConvertedSize += file.size;
-
-        updateProgress(
-          ((i + 1) / filesToProcess.length) * 100,
-          `Skipping ${file.name} (already ${targetFormat.name})`,
-          i + 1,
-          filesToProcess.length
-        );
-        continue;
-      }
-
-      // ✅ Convert format
-      const img = await createImageBitmap(file);
-
-      // Create canvas
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-
-      // ✅ Handle transparency for PNG
-      if (targetFormat.mime === "image/png") {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      } else {
-        // Fill white background for JPEG/WebP (no transparency)
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-
-      ctx.drawImage(img, 0, 0);
-
-      // ✅ Convert to blob with target format
-      const blob = await new Promise((resolve) => {
-        canvas.toBlob(resolve, targetFormat.mime, quality);
-      });
-
-      totalConvertedSize += blob.size;
-
-      // ✅ Change file extension
-      const newName = file.name.replace(/\.[^.]+$/, targetFormat.ext);
-      zip.file(newName, blob);
-
-      // ✅ Update stats in real-time
-      const sizeDiff = totalOriginalSize - totalConvertedSize;
-      const percentChange = ((sizeDiff / totalOriginalSize) * 100).toFixed(1);
-
-      document.getElementById("compressStats").innerHTML = `
-                📊 <strong>Conversion Stats:</strong><br>
-                Original: ${(totalOriginalSize / 1024 / 1024).toFixed(2)} MB • 
-                Converted: ${(totalConvertedSize / 1024 / 1024).toFixed(
-                  2
-                )} MB • 
-                ${sizeDiff >= 0 ? "Saved" : "Increased"}: ${Math.abs(
-        sizeDiff / 1024 / 1024
-      ).toFixed(2)} MB (${percentChange}%)
-            `;
+        switch (choice) {
+            case '1':
+                // PNG to JPG
+                const pngFiles = filesToProcess.filter(f => /\.png$/i.test(f.name));
+                if (pngFiles.length === 0) {
+                    showError('No PNG files found!');
+                    return;
+                }
+                const jpgQuality = prompt('Enter JPG quality (0-100):', '90');
+                await convertPNGToJPG(pngFiles, parseInt(jpgQuality) / 100);
+                break;
+                
+            case '2':
+                // JPG to PNG
+                const jpgFiles = filesToProcess.filter(f => /\.jpe?g$/i.test(f.name));
+                if (jpgFiles.length === 0) {
+                    showError('No JPG files found!');
+                    return;
+                }
+                await convertJPGToPNG(jpgFiles);
+                break;
+                
+            case '3':
+                // BMP to JPG
+                const bmpFiles1 = filesToProcess.filter(f => /\.bmp$/i.test(f.name));
+                if (bmpFiles1.length === 0) {
+                    showError('No BMP files found!');
+                    return;
+                }
+                await convertBMPToFormat(bmpFiles1, 'jpeg', 0.9);
+                break;
+                
+            case '4':
+                // BMP to PNG
+                const bmpFiles2 = filesToProcess.filter(f => /\.bmp$/i.test(f.name));
+                if (bmpFiles2.length === 0) {
+                    showError('No BMP files found!');
+                    return;
+                }
+                await convertBMPToFormat(bmpFiles2, 'png');
+                break;
+                
+            case '6':
+                // Text to PDF
+                const textFiles = filesToProcess.filter(f => /\.(txt|text)$/i.test(f.name));
+                if (textFiles.length === 0) {
+                    showError('No text files found!');
+                    return;
+                }
+                await convertTextToPDF(textFiles);
+                break;
+                
+            default:
+                showError('Invalid choice or feature not yet implemented!');
+        }
     } catch (error) {
-      showError(`Failed to convert ${file.name}: ${error.message}`, "warning");
-      zip.file(file.name, file); // Include original on error
-      totalConvertedSize += file.size;
+        showError(`Conversion failed: ${error.message}`);
     }
-
-    updateProgress(
-      ((i + 1) / filesToProcess.length) * 100,
-      `Converting to ${targetFormat.name}: ${i + 1}/${filesToProcess.length}`,
-      i + 1,
-      filesToProcess.length
-    );
-  }
-
-  // ✅ Download ZIP
-  const content = await zip.generateAsync({ type: "blob" });
-  const url = createTrackedURL(content);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `converted_to_${targetFormat.name.toLowerCase()}_${Date.now()}.zip`;
-  a.click();
-
-  showSuccess(
-    `Successfully converted ${filesToProcess.length} file(s) to ${targetFormat.name}!`
-  );
 }
+
+// ========================================
+// IMAGE FORMAT CONVERTERS
+// ========================================
+
+async function convertPNGToJPG(filesToProcess, quality = 0.9) {
+    const zip = new JSZip();
+    
+    startProgressTiming(filesToProcess.length);
+    
+    for (let i = 0; i < filesToProcess.length; i++) {
+        const file = filesToProcess[i];
+        updateProgress(
+            ((i + 1) / filesToProcess.length) * 100,
+            `Converting ${file.name} to JPG...`,
+            i + 1,
+            filesToProcess.length
+        );
+        
+        try {
+            // Create image bitmap
+            const img = await createImageBitmap(file);
+            
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Fill white background (PNG transparency → white)
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw image
+            ctx.drawImage(img, 0, 0);
+            
+            // Convert to JPG blob
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(resolve, 'image/jpeg', quality);
+            });
+            
+            // Add to ZIP
+            const newName = file.name.replace(/\.png$/i, '.jpg');
+            zip.file(newName, blob);
+            
+        } catch (error) {
+            showError(`Failed to convert ${file.name}: ${error.message}`, 'warning');
+            continue;
+        }
+        
+        // Yield to main thread
+        if ((i + 1) % 3 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+    }
+    
+    // Check if any files converted
+    if (Object.keys(zip.files).length === 0) {
+        showError('No files were converted!');
+        return;
+    }
+    
+    // Download ZIP
+    updateProgress(100, 'Creating ZIP...');
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = createTrackedURL(content);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `converted_jpg_${Date.now()}.zip`;
+    a.click();
+    
+    showSuccess(`Successfully converted ${Object.keys(zip.files).length} PNG files to JPG!`);
+}
+
+async function convertJPGToPNG(filesToProcess) {
+    const zip = new JSZip();
+    
+    startProgressTiming(filesToProcess.length);
+    
+    for (let i = 0; i < filesToProcess.length; i++) {
+        const file = filesToProcess[i];
+        updateProgress(
+            ((i + 1) / filesToProcess.length) * 100,
+            `Converting ${file.name} to PNG...`,
+            i + 1,
+            filesToProcess.length
+        );
+        
+        try {
+            // Create image bitmap
+            const img = await createImageBitmap(file);
+            
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            
+            // Convert to PNG blob (lossless)
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(resolve, 'image/png');
+            });
+            
+            // Add to ZIP
+            const newName = file.name.replace(/\.jpe?g$/i, '.png');
+            zip.file(newName, blob);
+            
+        } catch (error) {
+            showError(`Failed to convert ${file.name}: ${error.message}`, 'warning');
+            continue;
+        }
+        
+        // Yield to main thread
+        if ((i + 1) % 3 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+    }
+    
+    // Check if any files converted
+    if (Object.keys(zip.files).length === 0) {
+        showError('No files were converted!');
+        return;
+    }
+    
+    // Download ZIP
+    updateProgress(100, 'Creating ZIP...');
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = createTrackedURL(content);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `converted_png_${Date.now()}.zip`;
+    a.click();
+    
+    showSuccess(`Successfully converted ${Object.keys(zip.files).length} JPG files to PNG!`);
+}
+
+async function convertBMPToFormat(filesToProcess, targetFormat = 'jpeg', quality = 0.9) {
+    const zip = new JSZip();
+    const mimeType = targetFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const extension = targetFormat === 'jpeg' ? '.jpg' : '.png';
+    
+    startProgressTiming(filesToProcess.length);
+    
+    for (let i = 0; i < filesToProcess.length; i++) {
+        const file = filesToProcess[i];
+        updateProgress(
+            ((i + 1) / filesToProcess.length) * 100,
+            `Converting ${file.name} to ${targetFormat.toUpperCase()}...`,
+            i + 1,
+            filesToProcess.length
+        );
+        
+        try {
+            const img = await createImageBitmap(file);
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // White background for JPG
+            if (targetFormat === 'jpeg') {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            ctx.drawImage(img, 0, 0);
+            
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(resolve, mimeType, quality);
+            });
+            
+            const newName = file.name.replace(/\.bmp$/i, extension);
+            zip.file(newName, blob);
+            
+        } catch (error) {
+            showError(`Failed to convert ${file.name}: ${error.message}`, 'warning');
+            continue;
+        }
+        
+        if ((i + 1) % 3 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+    }
+    
+    if (Object.keys(zip.files).length === 0) {
+        showError('No files were converted!');
+        return;
+    }
+    
+    updateProgress(100, 'Creating ZIP...');
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = createTrackedURL(content);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `converted_${targetFormat}_${Date.now()}.zip`;
+    a.click();
+    
+    showSuccess(`Successfully converted ${Object.keys(zip.files).length} BMP files!`);
+}
+
+async function convertTextToPDF(filesToProcess) {
+    const { jsPDF } = window.jspdf;
+    
+    startProgressTiming(filesToProcess.length);
+    
+    for (let i = 0; i < filesToProcess.length; i++) {
+        const file = filesToProcess[i];
+        updateProgress(
+            ((i + 1) / filesToProcess.length) * 100,
+            `Converting ${file.name} to PDF...`,
+            i + 1,
+            filesToProcess.length
+        );
+        
+        try {
+            // Read text file
+            const text = await file.text();
+            
+            // Create PDF
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            // PDF settings
+            const margin = 20;
+            const lineHeight = 7;
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const maxWidth = pageWidth - (margin * 2);
+            
+            // Split text into lines
+            pdf.setFontSize(12);
+            const lines = pdf.splitTextToSize(text, maxWidth);
+            
+            let y = margin;
+            
+            for (let line of lines) {
+                // Add new page if needed
+                if (y + lineHeight > pageHeight - margin) {
+                    pdf.addPage();
+                    y = margin;
+                }
+                
+                pdf.text(line, margin, y);
+                y += lineHeight;
+            }
+            
+            // Save PDF
+            const pdfName = file.name.replace(/\.(txt|text)$/i, '.pdf');
+            pdf.save(pdfName);
+            
+        } catch (error) {
+            showError(`Failed to convert ${file.name}: ${error.message}`, 'warning');
+            continue;
+        }
+        
+        // Yield
+        await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    
+    showSuccess(`Successfully converted ${filesToProcess.length} text files to PDF!`);
+}
+
+
 
 // ✅ Image Editor - Full featured!
 async function openImageEditor(filesToProcess) {
